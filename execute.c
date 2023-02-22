@@ -1,49 +1,115 @@
 #include "shell.h"
+
 /**
- * execute_run - execute cmd
- * @arr: recieve argument
- * Return: 0, -1, 1
+ * _myhistory - displays the history list, one command by line, preceded
+ *              with line numbers, starting at 0.
+ * @info: Structure containing potential arguments. Used to maintain
+ *        constant function prototype.
+ *  Return: Always 0
  */
-
-void execute_run(char **arr)
+int _myhistory(info_t *info)
 {
-	char *cmd = arr[0];
-	char cmd_path[MAX_PATH_LEN];
+	print_list(info->history);
+	return (0);
+}
 
-	if (strchr(cmd, '/') != NULL)
+/**
+ * unset_alias - sets alias to string
+ * @info: parameter struct
+ * @str: the string alias
+ *
+ * Return: Always 0 on success, 1 on error
+ */
+int unset_alias(info_t *info, char *str)
+{
+	char *p, c;
+	int ret;
+
+	p = _strchr(str, '=');
+	if (!p)
+		return (1);
+	c = *p;
+	*p = 0;
+	ret = delete_node_at_index(&(info->alias),
+		get_node_index(info->alias, node_starts_with(info->alias, str, -1)));
+	*p = c;
+	return (ret);
+}
+
+/**
+ * set_alias - sets alias to string
+ * @info: parameter struct
+ * @str: the string alias
+ *
+ * Return: Always 0 on success, 1 on error
+ */
+int set_alias(info_t *info, char *str)
+{
+	char *p;
+
+	p = _strchr(str, '=');
+	if (!p)
+		return (1);
+	if (!*++p)
+		return (unset_alias(info, str));
+
+	unset_alias(info, str);
+	return (add_node_end(&(info->alias), str, 0) == NULL);
+}
+
+/**
+ * print_alias - prints an alias string
+ * @node: the alias node
+ *
+ * Return: Always 0 on success, 1 on error
+ */
+int print_alias(list_t *node)
+{
+	char *p = NULL, *a = NULL;
+
+	if (node)
 	{
-		snprintf(cmd_path, MAX_PATH_LEN, "%s", cmd);
+		p = _strchr(node->str, '=');
+		for (a = node->str; a <= p; a++)
+		_putchar(*a);
+		_putchar('\'');
+		_puts(p + 1);
+		_puts("'\n");
+		return (0);
 	}
-	else
-	{
-		char *full_path = get_full_path(cmd);
+	return (1);
+}
 
-		if (full_path == NULL)
+/**
+ * _myalias - mimics the alias builtin (man alias)
+ * @info: Structure containing potential arguments. Used to maintain
+ *          constant function prototype.
+ *  Return: Always 0
+ */
+int _myalias(info_t *info)
+{
+	int i = 0;
+	char *p = NULL;
+	list_t *node = NULL;
+
+	if (info->argc == 1)
+	{
+		node = info->alias;
+		while (node)
 		{
-			fprintf(stderr, "Command not found: %s\n", cmd);
-			return;
+			print_alias(node);
+			node = node->next;
 		}
-		snprintf(cmd_path, MAX_PATH_LEN, "%s", full_path);
-		free(full_path);
+		return (0);
 	}
-	pid_t my_pid;
-	int status;
-
-	my_pid = fork();
-
-	if (my_pid == -1)
+	for (i = 1; info->argv[i]; i++)
 	{
-		perror("Error");
-		return;
+		p = _strchr(info->argv[i], '=');
+		if (p)
+			set_alias(info, info->argv[i]);
+		else
+			print_alias(node_starts_with(info->alias, info->argv[i], '='));
 	}
-	else if (my_pid == 0)
-	{
-		if (execvp(cmd_path, arr) == -1)
-		{
-			perror(cmd_path);
-			exit(1);
-		}
-	}
-	else
-		wait(&status);
+
+	return (0);
 }
